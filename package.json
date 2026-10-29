@@ -17,5 +17,8 @@
   },
   "dependencies": {
     "node-cron": "^4.6.0"
+  },
+  "allowScripts": {
+    "cypress@16.2.1": true
   }
 }

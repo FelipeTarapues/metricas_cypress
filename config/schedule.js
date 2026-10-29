@@ -1,3 +1,7 @@
+// frequency admite: "única" (se ejecuta una sola vez en startDate+time y se
+// desactiva), "diaria" o "semanal" (todos los lunes). devices/pages deben
+// usar los mismos identificadores de config/devices.json (campo "name") y
+// config/pages.json (campo "id").
 module.exports = [
   {
     jobId: "job-escritorio",

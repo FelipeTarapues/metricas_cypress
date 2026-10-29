@@ -5,16 +5,47 @@
     <title>Métricas Web UAM</title>
     <style>
         body { background-color: #0B1220; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 2rem; }
+        h1 { margin-bottom: 0.25rem; }
+        h2 { color: #22D3EE; margin-top: 2.5rem; }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { padding: 1rem; border: 1px solid #1e293b; text-align: left; }
+        th, td { padding: 0.75rem 1rem; border: 1px solid #1e293b; text-align: left; }
         th { background-color: #111827; color: #22D3EE; }
-        .bueno { color: #39FF14; font-weight: bold; } /* Señal visual Bueno */
-        .por-mejorar { color: #fbbf24; font-weight: bold; } /* Señal visual Por mejorar */
-        .deficiente { color: #ef4444; font-weight: bold; } /* Señal visual Deficiente */
+        tr.fila-error { background-color: #2a1414; }
+        .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 0.35rem; font-weight: bold; font-size: 0.85rem; }
+        .badge.bueno { color: #39FF14; border: 1px solid #39FF14; }
+        .badge.por-mejorar { color: #fbbf24; border: 1px solid #fbbf24; }
+        .badge.deficiente { color: #ef4444; border: 1px solid #ef4444; }
+        .badge.na { color: #94a3b8; border: 1px solid #94a3b8; }
+        .metric-cell { white-space: nowrap; }
+        .resumen { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem; }
+        .tarjeta { background: #111827; border: 1px solid #1e293b; border-radius: 0.5rem; padding: 1rem 1.25rem; min-width: 220px; }
+        .tarjeta h3 { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #94a3b8; }
+        .tarjeta p { margin: 0; font-size: 1.1rem; }
+        .vacio { color: #94a3b8; font-style: italic; }
+        .mensaje-error { color: #ef4444; }
     </style>
 </head>
 <body>
     <h1>Reporte de Rendimiento Institucional</h1>
+    <p>Automatización de Métricas Web UAM — Lighthouse + Cypress</p>
+
+    <h2>Mejor y peor rendimiento</h2>
+    <div id="resumen" class="resumen"><p class="vacio">Cargando datos…</p></div>
+
+    <h2>Comparación por dispositivo (última medición de cada página)</h2>
+    <table id="tabla-comparacion">
+        <thead>
+            <tr>
+                <th>URL</th>
+                <th>Performance Desktop</th>
+                <th>Performance Móvil</th>
+                <th>Diferencia</th>
+            </tr>
+        </thead>
+        <tbody id="cuerpo-comparacion"></tbody>
+    </table>
+
+    <h2>Historial de ejecuciones</h2>
     <table>
         <thead>
             <tr>
@@ -22,38 +53,155 @@
                 <th>Dispositivo</th>
                 <th>Fecha (Timestamp)</th>
                 <th>Performance</th>
-                <th>LCP (s)</th>
+                <th>FCP</th>
+                <th>LCP</th>
+                <th>Speed Index</th>
+                <th>Estado</th>
             </tr>
         </thead>
         <tbody id="tabla-metricas"></tbody>
     </table>
 
     <script>
-        // En un entorno real, puedes usar fetch('cypress/fixtures/lighthouse-metrics.json') 
-        // si sirves este HTML con un servidor local (ej. Live Server o http-server)
-        fetch('cypress/fixtures/lighthouse-metrics.json')
-            .then(res => res.json())
-            .then(data => {
-                const tbody = document.getElementById('tabla-metricas');
-                data.forEach(item => {
-                    // Clasificación de Performance sin solapamientos
-                    let perfClass = 'bueno';
-                    if (item.performance <= 49) perfClass = 'deficiente';
-                    else if (item.performance <= 89) perfClass = 'por-mejorar';
+        // En un entorno real, sirve esta carpeta con un servidor estático
+        // (ej. `npx http-server .`) para que los fetch() funcionen; abrir el
+        // archivo con doble clic (file://) falla por restricciones de CORS.
+        const RUTA_METRICAS = 'cypress/fixtures/lighthouse-metrics.json';
+        const RUTA_UMBRALES = 'config/thresholds.json';
 
-                    // Convertir los tiempos numéricos a segundos para el informe visual
-                    const lcpSegundos = (item.largestContentfulPaint / 1000).toFixed(2);
+        const ETIQUETAS = {
+            bueno: { texto: '✔ Bueno', clase: 'bueno' },
+            'por-mejorar': { texto: '⚠ Por mejorar', clase: 'por-mejorar' },
+            deficiente: { texto: '✖ Deficiente', clase: 'deficiente' },
+            na: { texto: '— N/D', clase: 'na' },
+        };
 
-                    const row = `<tr>
-                        <td>${item.url}</td>
-                        <td>${item.screenEmulation}</td>
-                        <td>${new Date(item.timestamp).toLocaleString()}</td>
-                        <td class="${perfClass}">${item.performance} / 100</td>
-                        <td>${lcpSegundos}s</td>
-                    </tr>`;
-                    tbody.innerHTML += row;
-                });
+        // Clasifica un valor según config/thresholds.json. Las métricas de
+        // tiempo (fcp/lcp/speedIndex) son "menor es mejor"; performance es
+        // "mayor es mejor". Los rangos se definen en un único lugar
+        // (thresholds.json) y no se solapan.
+        function clasificar(metricKey, value, thresholds) {
+            if (value === null || value === undefined || Number.isNaN(value)) return 'na';
+            const t = thresholds[metricKey];
+            if (!t) return 'na';
+
+            if (metricKey === 'performance') {
+                if (value <= t.deficiente) return 'deficiente';
+                if (value <= t.porMejorar) return 'por-mejorar';
+                return 'bueno';
+            }
+
+            if (value <= t.bueno) return 'bueno';
+            if (value <= t.porMejorar) return 'por-mejorar';
+            return 'deficiente';
+        }
+
+        function badge(nivel) {
+            const info = ETIQUETAS[nivel] || ETIQUETAS.na;
+            return `<span class="badge ${info.clase}">${info.texto}</span>`;
+        }
+
+        function msASegundos(ms) {
+            return (ms === null || ms === undefined) ? null : (ms / 1000).toFixed(2);
+        }
+
+        function esDesktop(nombreDispositivo) {
+            return nombreDispositivo.toLowerCase().includes('desktop');
+        }
+
+        Promise.all([
+            fetch(RUTA_METRICAS).then((res) => res.ok ? res.json() : []),
+            fetch(RUTA_UMBRALES).then((res) => res.json()),
+        ])
+            .then(([data, thresholds]) => renderizar(data, thresholds))
+            .catch((err) => {
+                document.getElementById('resumen').innerHTML =
+                    `<p class="mensaje-error">No se pudieron cargar los datos (${err.message}). ` +
+                    `¿Sirves este archivo con un servidor local? Prueba: npx http-server .</p>`;
             });
+
+        function renderizar(data, thresholds) {
+            const tbody = document.getElementById('tabla-metricas');
+            const exitosos = data.filter((r) => r.status === 'Éxito');
+
+            // --- Historial completo (incluye errores) ---
+            data.forEach((item) => {
+                const esError = item.status !== 'Éxito';
+                const perfNivel = clasificar('performance', item.performance, thresholds);
+                const fcpNivel = clasificar('fcp', item.firstContentfulPaint, thresholds);
+                const lcpNivel = clasificar('lcp', item.largestContentfulPaint, thresholds);
+                const siNivel = clasificar('speedIndex', item.speedIndex, thresholds);
+
+                const row = document.createElement('tr');
+                if (esError) row.className = 'fila-error';
+                row.innerHTML = `
+                    <td>${item.url}</td>
+                    <td>${item.screenEmulation}</td>
+                    <td>${new Date(item.timestamp).toLocaleString()}</td>
+                    <td class="metric-cell">${esError ? '—' : item.performance + ' / 100 ' + badge(perfNivel)}</td>
+                    <td class="metric-cell">${esError ? '—' : msASegundos(item.firstContentfulPaint) + 's ' + badge(fcpNivel)}</td>
+                    <td class="metric-cell">${esError ? '—' : msASegundos(item.largestContentfulPaint) + 's ' + badge(lcpNivel)}</td>
+                    <td class="metric-cell">${esError ? '—' : msASegundos(item.speedIndex) + 's ' + badge(siNivel)}</td>
+                    <td class="${esError ? 'mensaje-error' : ''}">${item.status}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // --- Mejor y peor rendimiento ---
+            const resumenEl = document.getElementById('resumen');
+            if (exitosos.length === 0) {
+                resumenEl.innerHTML = '<p class="vacio">Aún no hay mediciones exitosas registradas.</p>';
+            } else {
+                const mejor = exitosos.reduce((a, b) => (b.performance > a.performance ? b : a));
+                const peor = exitosos.reduce((a, b) => (b.performance < a.performance ? b : a));
+                resumenEl.innerHTML = `
+                    <div class="tarjeta">
+                        <h3>Mejor rendimiento</h3>
+                        <p>${mejor.performance} / 100 — ${badge(clasificar('performance', mejor.performance, thresholds))}</p>
+                        <p>${mejor.url}<br>${mejor.screenEmulation}</p>
+                    </div>
+                    <div class="tarjeta">
+                        <h3>Peor rendimiento</h3>
+                        <p>${peor.performance} / 100 — ${badge(clasificar('performance', peor.performance, thresholds))}</p>
+                        <p>${peor.url}<br>${peor.screenEmulation}</p>
+                    </div>
+                    <div class="tarjeta">
+                        <h3>Mediciones registradas</h3>
+                        <p>${data.length} (${exitosos.length} exitosas, ${data.length - exitosos.length} con error)</p>
+                    </div>
+                `;
+            }
+
+            // --- Comparación Desktop vs Móvil (última medición por URL) ---
+            const porUrl = {};
+            exitosos.forEach((item) => {
+                if (!porUrl[item.url]) porUrl[item.url] = {};
+                const slot = esDesktop(item.screenEmulation) ? 'desktop' : 'movil';
+                const actual = porUrl[item.url][slot];
+                if (!actual || new Date(item.timestamp) > new Date(actual.timestamp)) {
+                    porUrl[item.url][slot] = item;
+                }
+            });
+
+            const cuerpoComparacion = document.getElementById('cuerpo-comparacion');
+            const urls = Object.keys(porUrl);
+            if (urls.length === 0) {
+                cuerpoComparacion.innerHTML = '<tr><td colspan="4" class="vacio">Sin datos suficientes todavía.</td></tr>';
+            } else {
+                urls.forEach((url) => {
+                    const { desktop, movil } = porUrl[url];
+                    const diferencia = (desktop && movil) ? (desktop.performance - movil.performance) : null;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${url}</td>
+                        <td>${desktop ? desktop.performance + ' / 100 ' + badge(clasificar('performance', desktop.performance, thresholds)) : '<span class="vacio">sin datos</span>'}</td>
+                        <td>${movil ? movil.performance + ' / 100 ' + badge(clasificar('performance', movil.performance, thresholds)) : '<span class="vacio">sin datos</span>'}</td>
+                        <td>${diferencia === null ? '<span class="vacio">N/D</span>' : (diferencia > 0 ? `Desktop +${diferencia}` : diferencia < 0 ? `Móvil +${-diferencia}` : 'Igual')}</td>
+                    `;
+                    cuerpoComparacion.appendChild(row);
+                });
+            }
+        }
     </script>
 </body>
 </html>
