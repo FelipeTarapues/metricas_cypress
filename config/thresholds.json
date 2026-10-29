@@ -1,0 +1,6 @@
+{
+  "fcp": { "bueno": 1800, "porMejorar": 3000 },
+  "lcp": { "bueno": 2500, "porMejorar": 4000 },
+  "speedIndex": { "bueno": 3400, "porMejorar": 5800 },
+  "performance": { "deficiente": 49, "porMejorar": 89 }
+}

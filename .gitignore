@@ -1,0 +1,15 @@
+# Dependencias de Node.js
+node_modules/
+package-lock.json
+
+# Archivos generados por Cypress en las pruebas
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
+# Archivos ocultos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno o configuraciones locales sensibles
+.env

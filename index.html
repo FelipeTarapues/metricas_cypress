@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Métricas Web UAM</title>
+    <style>
+        body { background-color: #0B1220; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 2rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 1rem; border: 1px solid #1e293b; text-align: left; }
+        th { background-color: #111827; color: #22D3EE; }
+        .bueno { color: #39FF14; font-weight: bold; } /* Señal visual Bueno */
+        .por-mejorar { color: #fbbf24; font-weight: bold; } /* Señal visual Por mejorar */
+        .deficiente { color: #ef4444; font-weight: bold; } /* Señal visual Deficiente */
+    </style>
+</head>
+<body>
+    <h1>Reporte de Rendimiento Institucional</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>URL Evaluada</th>
+                <th>Dispositivo</th>
+                <th>Fecha (Timestamp)</th>
+                <th>Performance</th>
+                <th>LCP (s)</th>
+            </tr>
+        </thead>
+        <tbody id="tabla-metricas"></tbody>
+    </table>
+
+    <script>
+        // En un entorno real, puedes usar fetch('cypress/fixtures/lighthouse-metrics.json') 
+        // si sirves este HTML con un servidor local (ej. Live Server o http-server)
+        fetch('cypress/fixtures/lighthouse-metrics.json')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('tabla-metricas');
+                data.forEach(item => {
+                    // Clasificación de Performance sin solapamientos
+                    let perfClass = 'bueno';
+                    if (item.performance <= 49) perfClass = 'deficiente';
+                    else if (item.performance <= 89) perfClass = 'por-mejorar';
+
+                    // Convertir los tiempos numéricos a segundos para el informe visual
+                    const lcpSegundos = (item.largestContentfulPaint / 1000).toFixed(2);
+
+                    const row = `<tr>
+                        <td>${item.url}</td>
+                        <td>${item.screenEmulation}</td>
+                        <td>${new Date(item.timestamp).toLocaleString()}</td>
+                        <td class="${perfClass}">${item.performance} / 100</td>
+                        <td>${lcpSegundos}s</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://www.autonoma.edu.co/conoce-la-uam/orquideas",
+    "screenEmulation": "Desktop (1920x1080)",
+    "timestamp": "2026-10-29T09:05:41.241Z",
+    "firstContentfulPaint": 1210.693,
+    "largestContentfulPaint": 1659.7547812805176,
+    "speedIndex": 1366.207125572608,
+    "performance": 60,
+    "status": "Éxito"
+  },
+  {
+    "url": "https://www.autonoma.edu.co/conoce-la-uam/orquideas",
+    "screenEmulation": "Moto G (412x823)",
+    "timestamp": "2026-10-29T09:05:56.014Z",
+    "firstContentfulPaint": 1270.6756,
+    "largestContentfulPaint": 1345.6756,
+    "speedIndex": 1544.3125778969766,
+    "performance": 73,
+    "status": "Éxito"
+  },
+  {
+    "url": "https://www.autonoma.edu.co/internacionalizacion/movilidad-local-y-nacional-e-internacional#movilidad-local",
+    "screenEmulation": "Desktop (1920x1080)",
+    "timestamp": "2026-10-29T09:06:13.883Z",
+    "firstContentfulPaint": 1147.2156999999997,
+    "largestContentfulPaint": 1195.2156999999997,
+    "speedIndex": 1538.3552720554376,
+    "performance": 60,
+    "status": "Éxito"
+  },
+  {
+    "url": "https://www.autonoma.edu.co/internacionalizacion/movilidad-local-y-nacional-e-internacional#movilidad-local",
+    "screenEmulation": "Moto G (412x823)",
+    "timestamp": "2026-10-29T09:06:31.597Z",
+    "firstContentfulPaint": 1150.7423,
+    "largestContentfulPaint": 1203.7423,
+    "speedIndex": 1498.9367086358177,
+    "performance": 78,
+    "status": "Éxito"
+  }
+]
