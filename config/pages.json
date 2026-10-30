@@ -1,10 +1,12 @@
 [
   {
     "id": "orquideas",
-    "url": "https://www.autonoma.edu.co/conoce-la-uam/orquideas"
+    "url": "https://www.autonoma.edu.co/conoce-la-uam/orquideas",
+    "owner": "Andres Montoya Ocampo"
   },
   {
     "id": "movilidad-local",
-    "url": "https://www.autonoma.edu.co/internacionalizacion/movilidad-local-y-nacional-e-internacional#movilidad-local"
+    "url": "https://www.autonoma.edu.co/internacionalizacion/movilidad-local-y-nacional-e-internacional#movilidad-local",
+    "owner": "Felipe Alejandro Tarapues"
   }
 ]
