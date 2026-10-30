@@ -4,7 +4,9 @@ const fs = require("fs");
 const path = require("path");
 const { syncRecordToSheet } = require("./config/googleSheets");
 
-let currentDeviceName = "Desconocido"; // Variable para rastrear el dispositivo actual
+let currentDeviceType = "Desconocido"; // Desktop / Mobile
+let currentDeviceName = "Desconocido"; // Nombre del dispositivo y resolución, sin paréntesis
+let currentScreenshotPath = null; // Ruta de la captura de evidencia de la prueba actual
 
 const dirPath = path.resolve(__dirname, 'cypress/fixtures');
 const filePath = path.join(dirPath, 'lighthouse-metrics.json');
@@ -53,18 +55,23 @@ module.exports = defineConfig({
       });
 
       on("task", {
-        // Tarea para recibir el nombre del dispositivo desde la prueba Cypress
-        setDeviceName(deviceName) {
-          currentDeviceName = deviceName;
+        // Tarea para recibir el dispositivo (tipo, nombre y captura de
+        // evidencia) desde la prueba Cypress
+        setDeviceName({ type, name, screenshot }) {
+          currentDeviceType = type;
+          currentDeviceName = name;
+          currentScreenshotPath = screenshot;
           return null;
         },
 
         // Tarea para registrar una evaluación que no pudo completarse
         // (página inaccesible, timeout, etc.), según el flujo de trabajo del enunciado.
-        recordError({ url, screenEmulation, message }) {
+        recordError({ url, deviceType, device, message }) {
           appendRecord({
             url,
-            screenEmulation,
+            deviceType,
+            device,
+            screenshot: null,
             timestamp: new Date().toISOString(),
             firstContentfulPaint: null,
             largestContentfulPaint: null,
@@ -90,7 +97,9 @@ module.exports = defineConfig({
 
           return appendRecord({
             url: lighthouseReport.lhr.requestedUrl, // Página evaluada
-            screenEmulation: currentDeviceName, // Dispositivo y resolución
+            deviceType: currentDeviceType, // Desktop / Mobile
+            device: currentDeviceName, // Nombre del dispositivo y resolución
+            screenshot: currentScreenshotPath, // Evidencia visual de la prueba
             timestamp: new Date().toISOString(), // Fecha y hora ISO 8601
             firstContentfulPaint: audits['first-contentful-paint'].numericValue, // Número en milisegundos
             largestContentfulPaint: audits['largest-contentful-paint'].numericValue, // Número en milisegundos

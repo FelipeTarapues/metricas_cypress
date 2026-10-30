@@ -25,6 +25,12 @@ describe('Automatización de Métricas Web UAM', () => {
 
         cy.viewport(device.viewport.width, device.viewport.height);
 
+        // Tipo (Desktop/Mobile) y nombre del dispositivo sin paréntesis:
+        // se separan en dos campos del registro (deviceType y device) en
+        // vez del antiguo campo único "screenEmulation".
+        const deviceType = device.name.toLowerCase().includes('desktop') ? 'Desktop' : 'Mobile';
+        const deviceLabel = device.name.replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
+
         // Comprobación previa de disponibilidad: si la página no responde,
         // registramos el error (campo status/error) y no intentamos la
         // auditoría de Lighthouse sobre una página caída.
@@ -32,7 +38,8 @@ describe('Automatización de Métricas Web UAM', () => {
           if (response.status >= 400) {
             cy.task('recordError', {
               url: page.url,
-              screenEmulation: device.name,
+              deviceType,
+              device: deviceLabel,
               message: `HTTP ${response.status} al intentar acceder a la página`,
             });
             return;
@@ -42,8 +49,18 @@ describe('Automatización de Métricas Web UAM', () => {
             headers: { 'user-agent': device.userAgent }
           });
 
-          // Le enviamos el nombre del dispositivo a la tarea de Node configurada arriba
-          cy.task('setDeviceName', device.name);
+          // Evidencia visual automatizada de cada prueba (pedida por la
+          // profesora): una captura de pantalla por cada combinación
+          // página x dispositivo, cuya ruta se guarda en el registro.
+          const screenshotName = `${page.id}_${deviceType}_${Date.now()}`;
+          cy.screenshot(screenshotName, { capture: 'fullPage', overwrite: true });
+
+          // Le enviamos el dispositivo y la captura a la tarea de Node configurada arriba
+          cy.task('setDeviceName', {
+            type: deviceType,
+            name: deviceLabel,
+            screenshot: `cypress/screenshots/metricas.cy.js/${screenshotName}.png`,
+          });
 
           const thresholds = {
             performance: 0,
@@ -53,7 +70,7 @@ describe('Automatización de Métricas Web UAM', () => {
           };
 
           const lighthouseConfig = {
-            formFactor: device.name.toLowerCase().includes('desktop') ? 'desktop' : 'mobile',
+            formFactor: deviceType === 'Desktop' ? 'desktop' : 'mobile',
             screenEmulation: { disabled: true }
           };
 

@@ -23,6 +23,8 @@
         .tarjeta p { margin: 0; font-size: 1.1rem; }
         .vacio { color: #94a3b8; font-style: italic; }
         .mensaje-error { color: #ef4444; }
+        .evidencia { display: inline-block; }
+        .evidencia img { width: 90px; border-radius: 0.25rem; border: 1px solid #1e293b; display: block; }
     </style>
 </head>
 <body>
@@ -50,6 +52,7 @@
         <thead>
             <tr>
                 <th>URL Evaluada</th>
+                <th>Tipo</th>
                 <th>Dispositivo</th>
                 <th>Fecha (Timestamp)</th>
                 <th>Performance</th>
@@ -57,6 +60,7 @@
                 <th>LCP</th>
                 <th>Speed Index</th>
                 <th>Estado</th>
+                <th>Evidencia</th>
             </tr>
         </thead>
         <tbody id="tabla-metricas"></tbody>
@@ -105,13 +109,31 @@
             return (ms === null || ms === undefined) ? null : (ms / 1000).toFixed(2);
         }
 
-        function esDesktop(nombreDispositivo) {
-            return nombreDispositivo.toLowerCase().includes('desktop');
+        // Fecha/hora legible: "30 oct 2026, 7:54 a. m." en vez del ISO crudo.
+        function fechaLegible(isoString) {
+            return new Date(isoString).toLocaleString('es-CO', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+            });
         }
 
+        function evidencia(item) {
+            if (!item.screenshot) return '<span class="vacio">—</span>';
+            return `<a class="evidencia" href="${item.screenshot}" target="_blank" rel="noopener">
+                <img src="${item.screenshot}" alt="Evidencia ${item.url} (${item.device})" loading="lazy">
+            </a>`;
+        }
+
+        // Cache-busting: http-server cachea los estáticos ~1h por defecto,
+        // y sin esto el informe podía mostrar datos viejos tras una corrida nueva.
+        const CACHE_BUST = `?t=${Date.now()}`;
+
         Promise.all([
-            fetch(RUTA_METRICAS).then((res) => res.ok ? res.json() : []),
-            fetch(RUTA_UMBRALES).then((res) => res.json()),
+            fetch(RUTA_METRICAS + CACHE_BUST).then((res) => res.ok ? res.json() : []),
+            fetch(RUTA_UMBRALES + CACHE_BUST).then((res) => res.json()),
         ])
             .then(([data, thresholds]) => renderizar(data, thresholds))
             .catch((err) => {
@@ -136,13 +158,15 @@
                 if (esError) row.className = 'fila-error';
                 row.innerHTML = `
                     <td>${item.url}</td>
-                    <td>${item.screenEmulation}</td>
-                    <td>${new Date(item.timestamp).toLocaleString()}</td>
+                    <td>${item.deviceType}</td>
+                    <td>${item.device}</td>
+                    <td>${fechaLegible(item.timestamp)}</td>
                     <td class="metric-cell">${esError ? '—' : item.performance + ' / 100 ' + badge(perfNivel)}</td>
                     <td class="metric-cell">${esError ? '—' : msASegundos(item.firstContentfulPaint) + 's ' + badge(fcpNivel)}</td>
                     <td class="metric-cell">${esError ? '—' : msASegundos(item.largestContentfulPaint) + 's ' + badge(lcpNivel)}</td>
                     <td class="metric-cell">${esError ? '—' : msASegundos(item.speedIndex) + 's ' + badge(siNivel)}</td>
                     <td class="${esError ? 'mensaje-error' : ''}">${item.status}</td>
+                    <td>${evidencia(item)}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -158,12 +182,12 @@
                     <div class="tarjeta">
                         <h3>Mejor rendimiento</h3>
                         <p>${mejor.performance} / 100 — ${badge(clasificar('performance', mejor.performance, thresholds))}</p>
-                        <p>${mejor.url}<br>${mejor.screenEmulation}</p>
+                        <p>${mejor.url}<br>${mejor.deviceType} — ${mejor.device}</p>
                     </div>
                     <div class="tarjeta">
                         <h3>Peor rendimiento</h3>
                         <p>${peor.performance} / 100 — ${badge(clasificar('performance', peor.performance, thresholds))}</p>
-                        <p>${peor.url}<br>${peor.screenEmulation}</p>
+                        <p>${peor.url}<br>${peor.deviceType} — ${peor.device}</p>
                     </div>
                     <div class="tarjeta">
                         <h3>Mediciones registradas</h3>
@@ -176,7 +200,7 @@
             const porUrl = {};
             exitosos.forEach((item) => {
                 if (!porUrl[item.url]) porUrl[item.url] = {};
-                const slot = esDesktop(item.screenEmulation) ? 'desktop' : 'movil';
+                const slot = item.deviceType === 'Desktop' ? 'desktop' : 'movil';
                 const actual = porUrl[item.url][slot];
                 if (!actual || new Date(item.timestamp) > new Date(actual.timestamp)) {
                     porUrl[item.url][slot] = item;
