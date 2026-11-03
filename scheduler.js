@@ -25,6 +25,19 @@ function runJob(job) {
 schedules.forEach(job => {
   if (!job.enabled) return;
 
+  // cronOverride: campo temporal para pruebas/demo (ej. "*/2 * * * *" para
+  // correr cada 2 minutos), que se salta por completo la lógica de
+  // time/frequency/startDate de abajo. Quitar este campo de schedule.js
+  // para volver al comportamiento normal (horario diario real).
+  if (job.cronOverride) {
+    console.log(`Job [${job.jobId}] usando cronOverride de prueba: "${job.cronOverride}" (${job.timezone})`);
+    cron.schedule(job.cronOverride, () => runJob(job), {
+      scheduled: true,
+      timezone: job.timezone,
+    });
+    return;
+  }
+
   // Convierte la hora "HH:MM" a formato cron
   const [hour, minute] = job.time.split(':');
   const startDate = new Date(`${job.startDate}T${job.time}:00`);

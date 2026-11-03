@@ -48,6 +48,11 @@ function flushSheetSyncs() {
 }
 
 module.exports = defineConfig({
+  // Por defecto Cypress borra cypress/screenshots al iniciar cada `cypress
+  // run`. Lo desactivamos porque cada captura es evidencia histórica
+  // (referenciada por su ruta desde cada registro del JSON y de Sheets) y
+  // debe acumularse entre corridas, no perderse en la siguiente ejecución.
+  trashAssetsBeforeRuns: false,
   e2e: {
     setupNodeEvents(on, config) {
       on("before:browser:launch", (browser = {}, launchOptions) => {
